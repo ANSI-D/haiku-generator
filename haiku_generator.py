@@ -11,6 +11,8 @@ from collections import defaultdict, Counter
 import random
 import re
 import string
+import pickle
+import os
 
 # Download required NLTK data
 try:
@@ -166,19 +168,30 @@ class NGramModel:
 class HaikuGenerator:
     """Main Haiku Generator class."""
     
-    def __init__(self, dataset_path='dataset.csv'):
+    def __init__(self, dataset_path='dataset.csv', model_path='haiku_model.pkl', force_retrain=False):
         print("Initializing Haiku Generator...")
         self.syllable_counter = SyllableCounter()
         self.dataset_path = dataset_path
+        self.model_path = model_path
         
         # Models for each line type (5, 7, 5 syllables)
         # Using bigrams (n=2) for better coherence
         self.model_5 = NGramModel(n=2)
         self.model_7 = NGramModel(n=2)
         
-        print("Loading and processing dataset...")
-        self.load_and_train()
-        print("Training complete!")
+        # Try to load existing model, otherwise train new one
+        if not force_retrain and os.path.exists(model_path):
+            print(f"Loading existing model from {model_path}...")
+            self.load_model()
+            print("Model loaded successfully!")
+        else:
+            if force_retrain:
+                print("Force retrain enabled. Training new model...")
+            else:
+                print("No existing model found. Training new model...")
+            self.load_and_train()
+            self.save_model()
+            print("Training complete!")
     
     def load_and_train(self):
         """Load dataset and train the models."""
@@ -215,6 +228,30 @@ class HaikuGenerator:
         
         print("Training 7-syllable line model...")
         self.model_7.train(lines_7)
+    
+    def save_model(self):
+        """Save the trained models to a file."""
+        model_data = {
+            'model_5': self.model_5,
+            'model_7': self.model_7
+        }
+        with open(self.model_path, 'wb') as f:
+            pickle.dump(model_data, f)
+        print(f"Model saved to {self.model_path}")
+    
+    def load_model(self):
+        """Load trained models from a file."""
+        with open(self.model_path, 'rb') as f:
+            model_data = pickle.load(f)
+        self.model_5 = model_data['model_5']
+        self.model_7 = model_data['model_7']
+    
+    def force_retrain(self):
+        """Force retraining the model from scratch."""
+        print("Forcing model retrain...")
+        self.load_and_train()
+        self.save_model()
+        print("Model retrained and saved!")
     
     def generate_line(self, target_syllables, model, max_attempts=200):
         """
