@@ -129,9 +129,9 @@ I have gotten so
 - **Fallback**: Vowel cluster heuristic
 - **Accuracy**: ~95% with CMUdict, ~85% with heuristic
 
-## Course Context
+## Under the hood
 
-This project demonstrates:
+This project utilizes:
 - N-gram language modeling
 - Probabilistic text generation
 - Syllable analysis and phonetics
