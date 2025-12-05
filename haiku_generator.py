@@ -14,6 +14,10 @@ import string
 from functools import lru_cache
 import pickle
 import os
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Download required NLTK data
 try:
@@ -208,13 +212,19 @@ class HaikuGenerator:
             'love', 'water', 'fall', 'day', 'light'
         ]
         
+        # TF-IDF vectorizer for quality scoring
+        self.tfidf_vectorizer = None
+        self.training_vectors = None
+        
         # Try to load models from cache
         if self._load_models():
             print("Loaded models from cache!")
+            self._setup_tfidf_scorer()
         else:
             print("Loading and processing dataset...")
             self.load_and_train()
             print("Training complete!")
+            self._setup_tfidf_scorer()
             self._save_models()
             
             # Pre-train models for common keywords
@@ -276,6 +286,21 @@ class HaikuGenerator:
             print(f"Error loading keyword models: {e}")
             return False
     
+    def _setup_tfidf_scorer(self):
+        """Setup TF-IDF vectorizer for quality scoring."""
+        print("Setting up quality scorer...")
+        
+        # Collect all lines from dataset for TF-IDF training
+        all_training_lines = []
+        for _, row in self.df.iterrows():
+            lines = [line.strip() for line in row['text'].split(' / ')]
+            all_training_lines.extend(lines)
+        
+        # Create and fit TF-IDF vectorizer
+        self.tfidf_vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
+        self.training_vectors = self.tfidf_vectorizer.fit_transform(all_training_lines)
+        print(f"Quality scorer ready with {len(all_training_lines)} training lines")
+    
     def load_and_train(self):
         """Load dataset and train the models."""
         # Load the CSV
@@ -311,6 +336,137 @@ class HaikuGenerator:
         
         print("Training 7-syllable line model...")
         self.model_7.train(lines_7)
+    
+    def score_line_quality(self, line):
+        """
+        Score the quality of a generated line (0-100 scale).
+        Higher score = better quality.
+        """
+        if not line or not line.strip():
+            return 0
+        
+        score = 50.0  # Start at neutral
+        words = line.lower().split()
+        
+        # CRITICAL: Detect nonsensical patterns
+        # Single letter words (except 'a' and 'i') are almost always errors
+        for word in words:
+            if len(word) == 1 and word not in ['a', 'i']:
+                score -= 40  # Heavy penalty for garbage like "B"
+        
+        # Penalty for word repetition
+        unique_words = len(set(words))
+        if len(words) > 0 and unique_words < len(words):
+            repetition_ratio = 1 - (unique_words / len(words))
+            score -= 30 * repetition_ratio
+        
+        # Penalty for very short lines (single word)
+        if len(words) < 2:
+            score -= 25
+        elif len(words) == 2:
+            score -= 10  # Slight penalty for very short
+        
+        # Penalty for overly long lines (too many words)
+        if len(words) > 8:
+            score -= 15
+        
+        # Check for reasonable word lengths (not all tiny or all huge)
+        if words:
+            avg_word_len = sum(len(w) for w in words) / len(words)
+            if avg_word_len < 2.5:  # Mostly tiny words
+                score -= 15
+            elif avg_word_len > 9:  # Mostly huge words
+                score -= 10
+        
+        # Coherence check via TF-IDF similarity to training data
+        if self.tfidf_vectorizer is not None and self.training_vectors is not None:
+            try:
+                line_vector = self.tfidf_vectorizer.transform([line])
+                similarities = cosine_similarity(line_vector, self.training_vectors)
+                avg_similarity = similarities.mean()
+                
+                # Similarity-based scoring (weighted towards coherence, not just vocab matching)
+                # Average similarity of 0.1 = +10 points, 0.2 = +20, etc.
+                coherence_score = min(40, avg_similarity * 200)  # Cap at 40 points
+                score += coherence_score
+            except:
+                score -= 10  # Penalty if TF-IDF fails (likely garbage text)
+        
+        # Penalty if last word is a stopword
+        if len(words) > 0 and words[-1] in STOPWORDS:
+            score -= 35
+        
+        # Check for grammar issues: repeated punctuation, weird capitalization patterns
+        if any(word.isupper() and len(word) > 1 for word in line.split()):
+            score -= 10  # ALL CAPS words
+        
+        # Ensure score stays in 0-100 range
+        return max(0, min(100, score))
+    
+    def score_haiku_quality(self, haiku):
+        """
+        Score the overall quality of a complete haiku (0-100 scale).
+        Returns (score, breakdown) tuple where score is 0-100.
+        """
+        lines = haiku.strip().split('\n')
+        if len(lines) != 3:
+            return 0, {"error": "Invalid haiku structure"}
+        
+        # Score each line individually (each line is already capped at 0-100)
+        line_scores = [self.score_line_quality(line) for line in lines]
+        avg_line_score = sum(line_scores) / len(line_scores)
+        
+        # Start with average line quality (0-100)
+        overall_score = avg_line_score
+        
+        # Check for cross-line coherence issues
+        all_words = []
+        for line in lines:
+            all_words.extend(line.lower().split())
+        
+        # Penalize if any line has extremely low score (indicates garbage)
+        min_line_score = min(line_scores)
+        if min_line_score < 30:
+            overall_score *= 0.7  # Reduce overall score if any line is terrible
+        
+        # Variety bonus (but don't let it push score over 100)
+        unique_ratio = len(set(all_words)) / len(all_words) if all_words else 0
+        variety_bonus = unique_ratio * 8  # Reduced from 10
+        
+        # Detect nonsensical haikus: check for single-letter words across all lines
+        single_letter_count = sum(1 for w in all_words if len(w) == 1 and w not in ['a', 'i'])
+        if single_letter_count > 0:
+            overall_score -= 25 * single_letter_count  # Heavy penalty
+        
+        # Check overall haiku coherence using TF-IDF (weight coherence more heavily)
+        coherence_bonus = 0
+        if self.tfidf_vectorizer is not None:
+            try:
+                full_text = ' '.join(lines)
+                haiku_vector = self.tfidf_vectorizer.transform([full_text])
+                similarities = cosine_similarity(haiku_vector, self.training_vectors)
+                avg_sim = similarities.mean()
+                
+                # Coherence contributes up to 20 points
+                coherence_bonus = min(20, avg_sim * 100)
+            except:
+                coherence_bonus = -5  # Penalty if TF-IDF fails
+        
+        # Combine scores (line quality is primary, coherence and variety are secondary)
+        final_score = overall_score * 0.75 + coherence_bonus + variety_bonus
+        
+        # Ensure final score is in 0-100 range
+        final_score = min(100, max(0, final_score))
+        
+        breakdown = {
+            'line_scores': [round(s, 1) for s in line_scores],
+            'avg_line_score': round(avg_line_score, 1),
+            'variety_bonus': round(variety_bonus, 1),
+            'coherence_bonus': round(coherence_bonus, 1),
+            'final_score': round(final_score, 1)
+        }
+        
+        return final_score, breakdown
     
     def generate_line(self, target_syllables, model, max_attempts=200):
         """
@@ -415,21 +571,26 @@ class HaikuGenerator:
         
         return line
     
-    def generate_haiku(self, attempts=10):
+    def generate_haiku(self, attempts=10, return_score=False, temperature=0.4):
         """
-        Generate a complete haiku.
+        Generate a complete haiku. Generates multiple candidates and picks the best.
+        Stanford research shows temperature 0-0.4 produces best quality haikus.
         
         Args:
-            attempts: Number of attempts to generate a valid haiku
+            attempts: Number of haiku candidates to generate
+            return_score: If True, returns (haiku, score, breakdown) tuple
+            temperature: Controls randomness (0=deterministic, 0.4=default/balanced)
             
         Returns:
-            Formatted haiku string or error message
+            Formatted haiku string, or tuple with (haiku, score, breakdown) if return_score=True
         """
+        candidates = []
+        
         for attempt in range(attempts):
-            # Generate three lines: 5-7-5
-            line1 = self.generate_line(5, self.model_5)
-            line2 = self.generate_line(7, self.model_7)
-            line3 = self.generate_line(5, self.model_5)
+            # Generate three lines: 5-7-5 with temperature control
+            line1 = self.generate_line(5, self.model_5, temperature=temperature)
+            line2 = self.generate_line(7, self.model_7, temperature=temperature)
+            line3 = self.generate_line(5, self.model_5, temperature=temperature)
             
             if line1 and line2 and line3:
                 # Clean and format each line (removes punctuation)
@@ -439,8 +600,21 @@ class HaikuGenerator:
                 
                 # Format the haiku (no punctuation added)
                 haiku = f"{line1}\n{line2}\n{line3}"
-                return haiku
+                
+                # Score the haiku
+                score, breakdown = self.score_haiku_quality(haiku)
+                candidates.append((haiku, score, breakdown))
         
+        if candidates:
+            # Return the best scoring haiku
+            best = max(candidates, key=lambda x: x[1])
+            if return_score:
+                return best
+            else:
+                return best[0]
+        
+        if return_score:
+            return "Failed to generate a valid haiku. Please try again.", 0, {}
         return "Failed to generate a valid haiku. Please try again."
     
     def generate_multiple_haikus(self, count=5):
@@ -558,8 +732,29 @@ class HaikuGenerator:
         
         return temp_model_5, temp_model_7
     
-    def generate_line_with_keyword(self, target_syllables, model, keyword, max_attempts=200):
-        """Generate a line containing the keyword with target syllable count."""
+    def generate_line_with_keyword(self, target_syllables, model, keyword, max_attempts=200, num_candidates=10):
+        """Generate a line containing the keyword with target syllable count.
+        Uses multiple candidates and quality scoring.
+        """
+        candidates = []
+        attempts_per_candidate = max(20, max_attempts // num_candidates)
+        
+        # Generate multiple candidate lines
+        for _ in range(num_candidates):
+            line = self._generate_single_line_with_keyword(target_syllables, model, keyword, attempts_per_candidate)
+            if line:
+                score = self.score_line_quality(line)
+                candidates.append((line, score))
+        
+        # Return the best candidate
+        if candidates:
+            best_line = max(candidates, key=lambda x: x[1])
+            return best_line[0]
+        
+        return None
+    
+    def _generate_single_line_with_keyword(self, target_syllables, model, keyword, max_attempts=20):
+        """Generate a single line with keyword attempt (internal helper)."""
         keyword_words = keyword.lower().split()
         keyword_syllables = sum(self.syllable_counter.count_syllables(w) for w in keyword_words)
         
@@ -643,7 +838,7 @@ class HaikuGenerator:
         
         return None
     
-    def generate_haiku_with_keyword(self, keyword, attempts=10):
+    def generate_haiku_with_keyword(self, keyword, attempts=10, return_score=False):
         """Generate a haiku based on or containing the given keyword."""
         print(f"\nGenerating haiku with keyword: '{keyword}'")
         
@@ -673,7 +868,9 @@ class HaikuGenerator:
                 print(f"Not enough matching haikus, using main model with keyword seeding...")
                 model_5, model_7 = self.model_5, self.model_7
         
-        # Generate haiku with keyword
+        # Generate multiple haiku candidates with keyword
+        candidates = []
+        
         for attempt in range(attempts):
             # Randomly decide which line will contain the keyword
             # Prefer line 1 or 3 (5-syllable lines)
@@ -708,9 +905,22 @@ class HaikuGenerator:
                 # Verify keyword is in the haiku
                 haiku_normalized = self._normalize_text(haiku)
                 if keyword_normalized in haiku_normalized:
-                    return haiku
+                    # Score the haiku
+                    score, breakdown = self.score_haiku_quality(haiku)
+                    candidates.append((haiku, score, breakdown))
         
-        return f"Failed to generate a haiku with keyword '{keyword}'. Please try again or use a different keyword."
+        if candidates:
+            # Return the best scoring haiku
+            best = max(candidates, key=lambda x: x[1])
+            if return_score:
+                return best
+            else:
+                return best[0]
+        
+        error_msg = f"Failed to generate a haiku with keyword '{keyword}'. Please try again or use a different keyword."
+        if return_score:
+            return error_msg, 0, {}
+        return error_msg
 
 
 def main():

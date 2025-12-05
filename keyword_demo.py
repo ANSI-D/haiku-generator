@@ -51,8 +51,15 @@ def main():
             print("Please enter a keyword (or 'stats' to see cache info).")
             continue
         
-        haiku = generator.generate_haiku_with_keyword(keyword)
+        haiku, score, breakdown = generator.generate_haiku_with_keyword(keyword, return_score=True)
         print(f"\n{haiku}")
+        print(f"\nQuality Score: {score:.1f}/100")
+        
+        # Show score breakdown
+        if breakdown:
+            print(f"  Line Scores: {[f'{s:.1f}' for s in breakdown.get('line_scores', [])]}")
+            print(f"  Variety Bonus: {breakdown.get('variety_bonus', 0):.1f}")
+            print(f"  Coherence Bonus: {breakdown.get('coherence_bonus', 0):.1f}")
         
         is_valid, message = generator.verify_haiku_structure(haiku)
         print(f"\n{message}")
