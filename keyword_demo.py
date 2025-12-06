@@ -58,7 +58,6 @@ def main():
         # Show score breakdown
         if breakdown:
             print(f"  Line Scores: {[f'{s:.1f}' for s in breakdown.get('line_scores', [])]}")
-            print(f"  Variety Bonus: {breakdown.get('variety_bonus', 0):.1f}")
             print(f"  Coherence Bonus: {breakdown.get('coherence_bonus', 0):.1f}")
         
         is_valid, message = generator.verify_haiku_structure(haiku)
