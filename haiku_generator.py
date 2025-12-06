@@ -15,7 +15,6 @@ import string
 from functools import lru_cache
 import pickle
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -46,29 +45,12 @@ except ImportError:
     nlp = None
 
 # Download required NLTK data
-try:
-    nltk.data.find('corpora/cmudict.zip')
-except LookupError:
-    print("Downloading CMU Pronouncing Dictionary...")
-    nltk.download('cmudict')
-
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    print("Downloading punkt tokenizer...")
-    nltk.download('punkt')
-
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    print("Downloading stopwords...")
-    nltk.download('stopwords')
-
-try:
-    nltk.data.find('taggers/averaged_perceptron_tagger')
-except LookupError:
-    print("Downloading POS tagger...")
-    nltk.download('averaged_perceptron_tagger')
+for resource, path in [('cmudict', 'corpora/cmudict.zip'), ('punkt', 'tokenizers/punkt'),
+                       ('stopwords', 'corpora/stopwords'), ('averaged_perceptron_tagger', 'taggers/averaged_perceptron_tagger')]:
+    try:
+        nltk.data.find(path)
+    except LookupError:
+        nltk.download(resource)
 
 # Load English stopwords
 STOPWORDS = set(stopwords.words('english'))
@@ -81,10 +63,7 @@ class SyllableCounter:
         self.cmudict = cmudict.dict()
     
     def count_syllables(self, word):
-        """
-        Count syllables in a word.
-        Uses CMUdict first, then falls back to heuristic counting.
-        """
+        """Count syllables using CMUdict, fallback to heuristic."""
         word = word.lower().strip(string.punctuation)
         
         # Try CMUdict first
@@ -98,10 +77,7 @@ class SyllableCounter:
         return self._heuristic_syllable_count(word)
     
     def _heuristic_syllable_count(self, word):
-        """
-        Heuristic syllable counting for words not in CMUdict.
-        Based on vowel groups.
-        """
+        """Heuristic syllable counting based on vowel groups."""
         if not word:
             return 0
         
@@ -139,12 +115,7 @@ class NGramModel:
         self.all_words = set()
     
     def train(self, texts):
-        """
-        Train the n-gram model on a list of text strings.
-        
-        Args:
-            texts: List of text strings (haiku lines)
-        """
+        """Train the n-gram model on text strings (haiku lines)."""
         for text in texts:
             words = self._tokenize(text)
             
@@ -179,15 +150,7 @@ class NGramModel:
         return cleaned_words
     
     def generate_next_word(self, context):
-        """
-        Generate the next word given a context.
-        
-        Args:
-            context: Tuple of previous words
-            
-        Returns:
-            Next word or None if context not found
-        """
+        """Generate next word given context tuple, or None if not found."""
         context = tuple(context)
         if context not in self.ngrams:
             return None
@@ -348,13 +311,11 @@ class HaikuGenerator:
         
         print(f"Loaded {len(haikus)} haikus from dataset")
         
-        # Split haikus into lines
         lines_5_first = []
         lines_7 = []
         lines_5_last = []
         
         for haiku in haikus:
-            # Split by ' / ' separator
             lines = [line.strip() for line in haiku.split(' / ')]
             
             if len(lines) >= 3:
@@ -364,8 +325,6 @@ class HaikuGenerator:
         
         print(f"Processing {len(lines_5_first)} haiku structures...")
         
-        # Train separate models for 5 and 7 syllable lines
-        # Combine first and last lines for 5-syllable model
         all_5_syllable_lines = lines_5_first + lines_5_last
         
         print("Training 5-syllable line model...")
@@ -374,27 +333,21 @@ class HaikuGenerator:
         print("Training 7-syllable line model...")
         self.model_7.train(lines_7)
         
-        # Extract templates from training data
         print("Extracting grammatical templates from training data...")
         self._extract_templates(all_5_syllable_lines, lines_7)
     
     def _extract_templates(self, lines_5, lines_7):
-        """
-        Extract POS tag templates from training data for template-based generation.
-        Stores common grammatical patterns for 5 and 7 syllable lines.
-        """
+        """Extract POS tag templates for template-based generation."""
         self.templates_5 = []
         self.templates_7 = []
         
         print("Analyzing 5-syllable line patterns...")
-        for line in lines_5[:2000]:  # Sample more lines
+        for line in lines_5[:2000]:
             tokens = word_tokenize(line)
             if len(tokens) < 2 or len(tokens) > 8:
                 continue
                 
             pos_tags = pos_tag(tokens)
-            
-            # Store template: [(word, POS, syllables), ...]
             template = []
             total_syllables = 0
             for word, pos in pos_tags:
@@ -402,7 +355,6 @@ class HaikuGenerator:
                 template.append((word.lower(), pos, syllables))
                 total_syllables += syllables
             
-            # Only keep templates that are actually 5 syllables and reasonable length
             if 2 <= len(template) <= 6 and 4 <= total_syllables <= 6:
                 self.templates_5.append(template)
         
@@ -421,7 +373,6 @@ class HaikuGenerator:
                 template.append((word.lower(), pos, syllables))
                 total_syllables += syllables
             
-            # Only keep templates that are actually 7 syllables
             if 2 <= len(template) <= 8 and 6 <= total_syllables <= 8:
                 self.templates_7.append(template)
         
@@ -429,15 +380,11 @@ class HaikuGenerator:
         print(f"Extracted {len(self.templates_7)} templates for 7-syllable lines")
     
     def _bert_score_word_in_context(self, context_words, candidate_word):
-        """
-        Score how well a candidate word fits in the given context using DistilBERT.
-        Returns a score (higher = better fit).
-        """
+        """Score how well candidate word fits context using DistilBERT (higher = better)."""
         if bert_tokenizer is None or bert_model is None:
-            return 0.5  # Neutral score
+            return 0.5
         
         try:
-            # Create sentence with [MASK] where candidate would go
             if context_words:
                 text = ' '.join(context_words) + ' [MASK]'
             else:
@@ -456,7 +403,6 @@ class HaikuGenerator:
             mask_logits = logits[0, mask_token_index[0]]
             probs = torch.softmax(mask_logits, dim=0)
             
-            # Get probability of candidate word
             candidate_tokens = bert_tokenizer.encode(candidate_word, add_special_tokens=False)
             if len(candidate_tokens) > 0:
                 prob = probs[candidate_tokens[0]].item()
@@ -466,11 +412,7 @@ class HaikuGenerator:
             return 0.5
     
     def _check_bert_coherence(self, line, threshold=-5.0):
-        """
-        Check line coherence using DistilBERT masked language model.
-        Masks each word and checks if DistilBERT predicts something reasonable.
-        Returns True if line is coherent (low perplexity).
-        """
+        """Check line coherence using DistilBERT masked language model."""
         if bert_tokenizer is None or bert_model is None:
             return True  # Skip if BERT not available
         
@@ -517,46 +459,34 @@ class HaikuGenerator:
             if count == 0:
                 return True
             
-            # Average log probability (higher = more coherent)
             avg_log_prob = total_log_prob / count
-            return avg_log_prob > threshold  # Threshold around -5.0
+            return avg_log_prob > threshold
         except:
-            return True  # Skip check on error
+            return True
     
     def _check_sentence_coherence(self, line):
-        """
-        Check sentence coherence using NLTK POS tagging and spaCy dependency parsing.
-        Returns a score from 0-30 (higher = more coherent).
-        """
-        coherence_score = 15.0  # Start neutral
+        """Check coherence using POS tagging and spaCy (score 0-30, higher = better)."""
+        coherence_score = 15.0
         
-        # NLTK Part-of-Speech tagging
         try:
             tokens = word_tokenize(line)
             pos_tags = pos_tag(tokens)
-            
-            # Check for basic grammatical patterns
             pos_sequence = [tag for word, tag in pos_tags]
             
-            # Penalty for broken patterns
-            # Check for repeated determiners: "the the"
             for i in range(len(pos_sequence) - 1):
                 if pos_sequence[i] == 'DT' and pos_sequence[i+1] == 'DT':
                     coherence_score -= 8
-                # Check for verb followed by verb without conjunction
                 if pos_sequence[i].startswith('VB') and pos_sequence[i+1].startswith('VB'):
                     coherence_score -= 6
             
-            # Bonus for good patterns
             has_noun = any(tag.startswith('NN') for tag in pos_sequence)
             has_verb = any(tag.startswith('VB') for tag in pos_sequence)
             
             if has_noun and has_verb:
-                coherence_score += 8  # Good subject-verb structure
+                coherence_score += 8
             elif has_noun or has_verb:
-                coherence_score += 3  # At least has one
+                coherence_score += 3
             
-            # Check for reasonable distribution (not all determiners/pronouns)
             content_words = sum(1 for tag in pos_sequence if tag.startswith(('NN', 'VB', 'JJ', 'RB')))
             if len(pos_sequence) > 0:
                 content_ratio = content_words / len(pos_sequence)
@@ -565,49 +495,36 @@ class HaikuGenerator:
                 elif content_ratio < 0.3:
                     coherence_score -= 5
         except:
-            coherence_score -= 5  # Penalty if POS tagging fails
+            coherence_score -= 5
         
-        # spaCy dependency parsing for advanced grammar checking
         if nlp is not None:
             try:
                 doc = nlp(line)
-                
-                # Check for proper sentence structure
                 has_root = any(token.dep_ == 'ROOT' for token in doc)
                 if has_root:
                     coherence_score += 5
-                
-                # Penalty for excessive punctuation dependencies
                 punct_count = sum(1 for token in doc if token.dep_ == 'punct')
                 if punct_count > 2:
                     coherence_score -= 3
-                
-                # Check for broken dependencies (orphaned words)
                 orphan_count = sum(1 for token in doc if token.dep_ == 'dep')
                 if orphan_count > 0:
                     coherence_score -= 4 * orphan_count
-                
             except:
-                pass  # If spaCy fails, just skip this check
+                pass
         
         return max(0, min(30, coherence_score))
     
     def score_line_quality(self, line):
-        """
-        Score the quality of a generated line (0-100 scale).
-        Higher score = better quality.
-        """
+        """Score line quality (0-100, higher = better)."""
         if not line or not line.strip():
             return 0
         
-        score = 50.0  # Start at neutral
+        score = 50.0
         words = line.lower().split()
         
-        # CRITICAL: Detect nonsensical patterns
-        # Single letter words (except 'a' and 'i') are almost always errors
         for word in words:
             if len(word) == 1 and word not in ['a', 'i']:
-                score -= 40  # Heavy penalty for garbage like "B"
+                score -= 40
         
         # Penalty for word repetition
         unique_words = len(set(words))
@@ -660,41 +577,31 @@ class HaikuGenerator:
         
         # Check for grammar issues: repeated punctuation, weird capitalization patterns
         if any(word.isupper() and len(word) > 1 for word in line.split()):
-            score -= 10  # ALL CAPS words
+            score -= 10
         
-        # Ensure score stays in 0-100 range
         return max(0, min(100, score))
     
     def score_haiku_quality(self, haiku):
-        """
-        Score the overall quality of a complete haiku (0-100 scale).
-        Returns (score, breakdown) tuple where score is 0-100.
-        """
+        """Score complete haiku quality (0-100), returns (score, breakdown)."""
         lines = haiku.strip().split('\n')
         if len(lines) != 3:
             return 0, {"error": "Invalid haiku structure"}
         
-        # Score each line individually (each line is already capped at 0-100)
         line_scores = [self.score_line_quality(line) for line in lines]
         avg_line_score = sum(line_scores) / len(line_scores)
-        
-        # Start with average line quality (0-100)
         overall_score = avg_line_score
         
-        # Check for cross-line coherence issues
         all_words = []
         for line in lines:
             all_words.extend(line.lower().split())
         
-        # Penalize if any line has extremely low score (indicates garbage)
         min_line_score = min(line_scores)
         if min_line_score < 30:
-            overall_score *= 0.7  # Reduce overall score if any line is terrible
+            overall_score *= 0.7
         
-        # Detect nonsensical haikus: check for single-letter words across all lines
         single_letter_count = sum(1 for w in all_words if len(w) == 1 and w not in ['a', 'i'])
         if single_letter_count > 0:
-            overall_score -= 25 * single_letter_count  # Heavy penalty
+            overall_score -= 25 * single_letter_count
         
         # Check overall haiku coherence using TF-IDF (coherence is primary factor)
         coherence_bonus = 0
@@ -704,11 +611,9 @@ class HaikuGenerator:
                 haiku_vector = self.tfidf_vectorizer.transform([full_text])
                 similarities = cosine_similarity(haiku_vector, self.training_vectors)
                 avg_sim = similarities.mean()
-                
-                # Coherence contributes up to 30 points
                 coherence_bonus = min(30, avg_sim * 150)
             except:
-                coherence_bonus = -5  # Penalty if TF-IDF fails
+                coherence_bonus = -5
         
         # Combine scores (line quality + coherence, no variety)
         final_score = overall_score * 0.7 + coherence_bonus
@@ -726,22 +631,8 @@ class HaikuGenerator:
         return final_score, breakdown
     
     def generate_line(self, target_syllables, model, max_attempts=50):
-        """
-        Generate a single line with the target syllable count using templates.
-        
-        Args:
-            target_syllables: Target number of syllables (5 or 7)
-            model: The n-gram model to use
-            max_attempts: Maximum number of generation attempts (reduced for speed)
-            
-        Returns:
-            Generated line or None if failed
-        """
-        # Select appropriate templates
+        """Generate a line with target syllable count using templates."""
         templates = self.templates_5 if target_syllables == 5 else self.templates_7
-        
-        # BERT during generation is too slow - use smart N-gram generation instead
-        # BERT will be used for post-filtering complete haikus
         return self._generate_line_ngram(target_syllables, model, max_attempts=100)
     
     def _generate_line_bert_guided(self, target_syllables, model, max_attempts=50):
@@ -952,18 +843,7 @@ class HaikuGenerator:
         return line
     
     def generate_haiku(self, attempts=15, return_score=False, temperature=0.4):
-        """
-        Generate a complete haiku. Generates multiple candidates and picks the best.
-        BERT is used to select the most coherent candidate.
-        
-        Args:
-            attempts: Number of haiku candidates to generate (more = better quality)
-            return_score: If True, returns (haiku, score, breakdown) tuple
-            temperature: Controls randomness (0=deterministic, 0.4=default/balanced)
-            
-        Returns:
-            Formatted haiku string, or tuple with (haiku, score, breakdown) if return_score=True
-        """
+        """Generate haiku using multiple candidates, BERT selects most coherent."""
         candidates = []
         
         for attempt in range(attempts):
@@ -1413,7 +1293,7 @@ class HaikuGenerator:
 
 
 def main():
-    """Main function to demonstrate the haiku generator."""
+    """Demonstrate the haiku generator."""
     print("=" * 60)
     print("HAIKU GENERATOR - NLP Class Project")
     print("=" * 60)
