@@ -1,10 +1,10 @@
-Syllable accuracy: 99.0%
+Syllable accuracy: 98.0%
 Diversity: 100.0%
 
 Keyword relevance (sample):
 keyword  relevance
-   wind        1.0
+  water        1.0
   haiku        1.0
- clouds        1.0
-    sky        1.0
-   love        1.0
+   rain        1.0
+  light        1.0
+   moon        1.0

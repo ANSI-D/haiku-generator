@@ -1,0 +1,180 @@
+Loading Haiku Generator...
+Initializing Haiku Generator...
+Loading models from models/main_models.pkl...
+Loaded models from cache!
+
+Evaluating syllable accuracy...
+Syllable accuracy: 98.0%
+
+Evaluating diversity...
+Diversity (unique haikus): 100.0%
+
+Evaluating keyword relevance...
+
+Generating haiku with keyword: 'water'
+Found 585 haikus matching 'water'
+Training specialized model on 585 related haikus...
+Model cached for future use
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'water'
+Using cached model for 'water' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Found 283 haikus matching 'haiku'
+Training specialized model on 283 related haikus...
+Model cached for future use
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'haiku'
+Using cached model for 'haiku' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Found 2091 haikus matching 'rain'
+Training specialized model on 2091 related haikus...
+Model cached for future use
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'rain'
+Using cached model for 'rain' (cache hit)
+
+Generating haiku with keyword: 'light'
+Found 1953 haikus matching 'light'
+Training specialized model on 1953 related haikus...
+Model cached for future use
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'light'
+Using cached model for 'light' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Found 1724 haikus matching 'moon'
+Training specialized model on 1724 related haikus...
+Model cached for future use
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+
+Generating haiku with keyword: 'moon'
+Using cached model for 'moon' (cache hit)
+  keyword  relevance
+0   water        1.0
+1   haiku        1.0
+2    rain        1.0
+3   light        1.0
+4    moon        1.0
+
+Results saved to 'evaluation_summary.txt' and 'keyword_relevance_results.csv'.
