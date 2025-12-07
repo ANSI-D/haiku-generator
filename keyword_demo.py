@@ -56,6 +56,22 @@ def main():
         
         is_valid, message = generator.verify_haiku_structure(haiku)
         print(f"\n{message}")
+        
+        # Print evaluation metrics (syllable-based scoring)
+        lines = haiku.strip().split('\n')
+        syllables = [generator.syllable_counter.count_syllables_in_phrase(line) for line in lines]
+        
+        print("\n" + "="*40)
+        print("EVALUATION METRICS")
+        print("="*40)
+        print(f"Syllable Counts: {syllables}")
+        print(f"Expected: [5, 7, 5]")
+        
+        # Basic quality score based on syllable accuracy
+        expected = [5, 7, 5]
+        diffs = [abs(s - e) for s, e in zip(syllables, expected)]
+        accuracy = 100 - (sum(diffs) / len(diffs) * 20)  # 20% penalty per syllable diff
+        print(f"Structure Accuracy: {max(0, accuracy):.1f}%")
 
 if __name__ == "__main__":
     main()
