@@ -1,11 +1,3 @@
-def print_haiku_pos(haiku):
-    """Print POS tags for each line of a haiku."""
-    lines = haiku.strip().split('\n')
-    for i, line in enumerate(lines, 1):
-        tokens = nltk.word_tokenize(line)
-        pos_tags = nltk.pos_tag(tokens)
-        print(f"Line {i} POS tags: {pos_tags}")
-
 #!/usr/bin/env python3
 """
 Haiku Generator using N-gram Language Model
@@ -752,7 +744,6 @@ def main():
         is_valid, message = generator.verify_haiku_structure(haiku)
         print(f"Verification: {message}")
         print("-" * 40)
-        print_haiku_pos(haiku)
     
     # Interactive mode
     print("\n" + "=" * 60)
@@ -779,7 +770,6 @@ def main():
         print("\n" + haiku)
         is_valid, message = generator.verify_haiku_structure(haiku)
         print(f"\n{message}")
-        print_haiku_pos(haiku)
 
 
 if __name__ == "__main__":
