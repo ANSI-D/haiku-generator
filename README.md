@@ -86,6 +86,14 @@ is_valid, message = generator.verify_haiku_structure(haiku)
 - **CPU-Based**: Traditional NLP methods don't benefit from GPU acceleration
 - **Memory Efficient**: Uses simple dictionaries and counters
 
+## Evaluation (70/30 Train/Test Split)
+
+The evaluation uses a **70/30 split** to avoid overfitting:
+- **70% Training Set**: Used to train the N-gram models.
+- **30% Test Set**: Held out and never seen during training. Used to measure **test set coverage**—the fraction of word bigrams in the test set that also appeared in training.
+
+High coverage means the model generalizes well to unseen haikus; low coverage indicates many unseen word patterns. This approach ensures realistic performance estimates.
+
 ## Examples of generated Haikus
 
 ```
